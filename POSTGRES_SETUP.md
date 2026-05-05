@@ -4,6 +4,97 @@
 
 ---
 
+## 📌 Parte 0 — Como funcionam as Migrations neste projeto
+
+> **Leia isso antes de qualquer coisa.** Entender o fluxo de migrations evita dores de cabeça.
+
+### O que é uma migration?
+
+Uma migration é um arquivo SQL gerado pelo Prisma que descreve **o que mudou** no banco de dados (criar tabela, adicionar coluna, etc.). Esses arquivos ficam versionados em `backend/prisma/migrations/` e são commitados no repositório.
+
+### Comportamento automático no startup
+
+O `docker-compose.yml` está configurado para, ao iniciar o container do backend, executar automaticamente:
+
+```
+npx prisma generate     → gera o client TypeScript atualizado
+npx prisma migrate deploy → aplica migrations pendentes (idempotente)
+npm run start:dev       → inicia a aplicação
+```
+
+| Situação | O que acontece |
+|---|---|
+| **Primeiro clone** (banco vazio) | Cria todas as tabelas automaticamente |
+| **Reiniciar containers** (sem mudanças) | Verifica migrations, **não faz nada** |
+| **Novo campo commitado** por outro dev | Aplica apenas as migrations novas |
+
+> ✅ `migrate deploy` é **seguro para repetir** — nunca refaz o que já foi aplicado.
+
+---
+
+### Fluxo para evoluir o banco (adicionar tabelas/colunas)
+
+```
+1. Altere  backend/prisma/schema.prisma
+           (adicione modelo, campo, relação...)
+
+2. Gere a migration (roda no seu ambiente local):
+   docker compose exec backend npx prisma migrate dev --name descricao_da_mudanca
+
+   Isso cria um arquivo em:
+   backend/prisma/migrations/TIMESTAMP_descricao_da_mudanca/migration.sql
+
+3. Commite a migration junto com o schema:
+   git add backend/prisma/
+   git commit -m "feat: adiciona campo X na tabela Y"
+
+4. Outros devs que fizerem pull e reiniciarem os containers
+   terão a migration aplicada automaticamente.
+```
+
+---
+
+### Comandos úteis de migrations
+
+```bash
+# Ver status de todas as migrations (quais foram aplicadas)
+docker compose exec backend npx prisma migrate status
+
+# Criar nova migration após alterar o schema.prisma
+docker compose exec backend npx prisma migrate dev --name nome_descritivo
+
+# Aplicar migrations pendentes (sem criar novas — usado em produção)
+docker compose exec backend npx prisma migrate deploy
+
+# Abrir interface visual do banco (Prisma Studio) em http://localhost:5555
+docker compose exec backend npx prisma studio
+
+# ⚠️ CUIDADO: reseta o banco e reaplica tudo do zero (APAGA OS DADOS)
+docker compose exec backend npx prisma migrate reset
+
+# Popular o banco com dados de exemplo
+docker compose exec backend npx prisma db seed
+```
+
+---
+
+### Estrutura de arquivos de migrations
+
+```
+backend/prisma/
+├── schema.prisma                  ← fonte da verdade do banco
+├── seed.ts                        ← dados iniciais de exemplo
+└── migrations/
+    ├── migration_lock.toml        ← lock do provider (não editar)
+    └── 20260505235317_init/
+        └── migration.sql          ← SQL gerado automaticamente
+```
+
+> ⚠️ **Nunca edite** os arquivos dentro de `migrations/` manualmente.  
+> Sempre use `prisma migrate dev` para criar novas migrations.
+
+---
+
 ## 📌 Parte 1 — PostgreSQL Local (com Docker)
 
 O `docker-compose.yml` já sobe o PostgreSQL automaticamente. Basta rodar:
