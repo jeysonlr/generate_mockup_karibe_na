@@ -51,7 +51,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: npm run start:dev
+    command: sh -c "npx prisma generate && npx prisma migrate deploy && npm run start:dev"
 
   frontend:
     build:
