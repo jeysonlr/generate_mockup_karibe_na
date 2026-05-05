@@ -1,0 +1,41 @@
+# Dependências
+node_modules/
+.pnp
+.pnp.js
+
+# Builds
+dist/
+.next/
+out/
+build/
+
+# Variáveis de ambiente (manter apenas os exemplos)
+.env
+.env.*
+!.env.example
+
+# Uploads gerados
+backend/uploads/arts/*
+backend/uploads/mockups/*
+!backend/uploads/arts/.gitkeep
+!backend/uploads/mockups/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testes
+coverage/
+
+# Editor / SO
+.DS_Store
+.vscode/
+*.swp
+*.swo
+Thumbs.db
+
+# Docker volumes locais
+postgres_data/
+

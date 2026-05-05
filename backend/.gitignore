@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+uploads/arts/*
+uploads/mockups/*
+!uploads/arts/.gitkeep
+!uploads/mockups/.gitkeep
+coverage/
+*.log
