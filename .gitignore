@@ -9,6 +9,14 @@ dist/
 out/
 build/
 
+# TypeScript cache incremental
+*.tsbuildinfo
+
+# Arquivos compilados do seed (gerados automaticamente)
+backend/prisma/seed.js
+backend/prisma/seed.js.map
+backend/prisma/seed.d.ts
+
 # Variáveis de ambiente (manter apenas os exemplos)
 .env
 .env.*
@@ -38,4 +46,8 @@ Thumbs.db
 
 # Docker volumes locais
 postgres_data/
+
+# Arquivos com credenciais gerados localmente
+*.txt
+!README*.txt
 
