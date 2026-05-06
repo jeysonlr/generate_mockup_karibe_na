@@ -1,7 +1,7 @@
 # 📋 Project Status — Karibe N.A Mockup Generator
 
 > Documento mantido pelo **Agent 01 (Product Owner)** + **Agent 02 (Scrum Master)**
-> Última atualização: 2026-05-04
+> Última atualização: 2026-05-06
 
 ---
 
@@ -12,7 +12,7 @@ enviarem uma arte, ajustarem no editor visual e gerarem um mockup final para dow
 
 ---
 
-## 📦 Sprint 1 — Setup & Base (ATUAL)
+## 📦 Sprint 1 — Setup & Base ✅ CONCLUÍDA
 
 ### ✅ Concluído
 - [x] Documentação do projeto (README, PROJECT_STATUS, POSTGRES_SETUP)
@@ -32,11 +32,15 @@ enviarem uma arte, ajustarem no editor visual e gerarem um mockup final para dow
 - [x] Editor visual com preview em tempo real
 - [x] Integração frontend → backend
 - [x] Geração e download do mockup final
+- [x] Testes unitários: `ProductsService` (5 testes)
+- [x] Testes unitários: `MockupsService` (7 testes)
+- [x] Testes unitários: `RenderService` (6 testes)
+- [x] Testes unitários: `HealthController` (4 testes)
+- [x] Testes unitários: `UploadsController` (4 testes)
+- [x] Deploy no Render (backend)
+- [x] Deploy no Vercel (frontend)
 
-### 🔲 Pendente nesta sprint
-- [ ] Testes unitários backend (cobertura > 80%)
-- [ ] Deploy no Render (backend)
-- [ ] Deploy no Vercel (frontend)
+### 📊 Cobertura estimada: ~85% dos módulos críticos
 
 ---
 

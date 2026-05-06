@@ -1,0 +1,44 @@
+#!/bin/sh
+# Hook pre-push — Karibe N.A
+# Garante que todos os testes passam antes de qualquer push.
+
+echo ""
+echo "🚀 [pre-push] Validando testes antes do push..."
+echo ""
+
+BACKEND_DIR="backend"
+
+# Verifica se há arquivos .spec.ts
+SPEC_COUNT=$(find "$BACKEND_DIR/src" -name "*.spec.ts" 2>/dev/null | wc -l | tr -d ' ')
+
+if [ "$SPEC_COUNT" -eq "0" ]; then
+  echo "❌ Nenhum arquivo de teste (.spec.ts) encontrado!"
+  echo "   O push só é permitido com testes implementados."
+  echo ""
+  exit 1
+fi
+
+# Instala dependências se necessário
+if [ ! -d "$BACKEND_DIR/node_modules" ]; then
+  echo "📦 Instalando dependências do backend..."
+  npm install --prefix "$BACKEND_DIR" --silent
+fi
+
+echo "🧪 Rodando todos os testes ($SPEC_COUNT spec files)..."
+echo ""
+
+npm test --prefix "$BACKEND_DIR" -- --no-coverage --passWithNoTests
+
+TEST_EXIT_CODE=$?
+
+if [ $TEST_EXIT_CODE -ne 0 ]; then
+  echo ""
+  echo "❌ Push bloqueado: testes estão falhando."
+  echo "   Corrija os erros e tente novamente."
+  echo ""
+  exit 1
+fi
+
+echo ""
+echo "✅ Testes OK. Push autorizado."
+echo ""
