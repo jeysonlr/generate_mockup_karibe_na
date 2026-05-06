@@ -39,10 +39,15 @@ coverage/
 
 # Editor / SO
 .DS_Store
-.vscode/
+.vscode/*
+!.vscode/tasks.json
+!.vscode/extensions.json
 *.swp
 *.swo
 Thumbs.db
+
+# Husky — hooks são versionados intencionalmente
+# (não ignorar .husky/)
 
 # Docker volumes locais
 postgres_data/

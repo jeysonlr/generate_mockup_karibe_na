@@ -1,0 +1,53 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Backend: Run Tests",
+			"type": "shell",
+			"command": "cd backend && npm install && npx jest --no-coverage --verbose",
+			"group": "test",
+			"isBackground": false,
+			"problemMatcher": ["$tsc"]
+		},
+		{
+			"label": "Backend: Run Tests Coverage",
+			"type": "shell",
+			"command": "cd backend && npx jest --coverage --verbose",
+			"group": "test",
+			"isBackground": false,
+			"problemMatcher": ["$tsc"]
+		},
+		{
+			"label": "Setup: Install Husky",
+			"type": "shell",
+			"command": "npm install && npx husky init",
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Docker: Up All",
+			"type": "shell",
+			"command": "docker compose up --build",
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Docker: Down",
+			"type": "shell",
+			"command": "docker compose down",
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Git: Commit Sprint 1",
+			"type": "shell",
+			"command": "sh commit-sprint1.sh",
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}

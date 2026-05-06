@@ -1,0 +1,15 @@
+{
+  "name": "karibe-na-mockup-generator",
+  "version": "1.0.0",
+  "description": "Monorepo root — Karibe N.A Mockup Generator",
+  "private": true,
+  "scripts": {
+    "prepare": "husky",
+    "postinstall": "chmod +x .husky/pre-commit .husky/pre-push 2>/dev/null || true",
+    "test:backend": "npm test --prefix backend",
+    "test:all": "npm run test:backend"
+  },
+  "devDependencies": {
+    "husky": "^9.0.0"
+  }
+}

@@ -1,0 +1,47 @@
+#!/bin/sh
+# Hook pre-commit — Karibe N.A
+# Garante que os testes do backend existem e passam antes de qualquer commit.
+
+echo ""
+echo "🔍 [pre-commit] Verificando testes do backend..."
+echo ""
+
+BACKEND_DIR="backend"
+
+# Verifica se há arquivos .spec.ts — garante que testes existem
+SPEC_COUNT=$(find "$BACKEND_DIR/src" -name "*.spec.ts" 2>/dev/null | wc -l | tr -d ' ')
+
+if [ "$SPEC_COUNT" -eq "0" ]; then
+  echo "❌ Nenhum arquivo de teste (.spec.ts) encontrado em $BACKEND_DIR/src/"
+  echo "   Crie os testes antes de commitar."
+  echo ""
+  exit 1
+fi
+
+echo "✅ $SPEC_COUNT arquivo(s) de teste encontrado(s)."
+echo ""
+
+# Instala dependências se node_modules não existir
+if [ ! -d "$BACKEND_DIR/node_modules" ]; then
+  echo "📦 Instalando dependências do backend..."
+  npm install --prefix "$BACKEND_DIR" --silent
+fi
+
+# Roda os testes
+echo "🧪 Rodando testes unitários..."
+echo ""
+
+npm test --prefix "$BACKEND_DIR" -- --no-coverage --passWithNoTests
+
+TEST_EXIT_CODE=$?
+
+if [ $TEST_EXIT_CODE -ne 0 ]; then
+  echo ""
+  echo "❌ Testes falharam! Corrija os erros antes de commitar."
+  echo ""
+  exit 1
+fi
+
+echo ""
+echo "✅ Todos os testes passaram. Commit liberado."
+echo ""

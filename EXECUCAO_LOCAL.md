@@ -24,9 +24,39 @@
 generate_mockup_karibe_na/
 ├── backend/         # API NestJS + Prisma + Sharp
 ├── frontend/        # Next.js 14 + Tailwind + Fabric.js
+├── .husky/          # Git hooks (pre-commit e pre-push com testes automáticos)
+├── package.json     # Raiz do monorepo (Husky)
 ├── docker-compose.yml
 ├── setup.sh         # Script de setup automático
 └── EXECUCAO_LOCAL.md
+```
+
+---
+
+## 🔒 Git Hooks — Proteção Automática de Qualidade
+
+O projeto usa **Husky** para garantir que nenhum código com testes quebrados seja commitado ou enviado.
+
+### Como ativar (uma vez após clonar):
+```bash
+# Na raiz do projeto:
+npm install
+```
+Isso instala o Husky e ativa os hooks automaticamente via `prepare`.
+
+### O que acontece em cada operação:
+
+| Operação | Verificação |
+|---|---|
+| `git commit` | Checa se existem arquivos `.spec.ts` + roda todos os testes |
+| `git push` | Roda novamente todos os testes antes de enviar |
+
+> **Se os testes falharem, o commit/push é bloqueado automaticamente.**
+
+### Para pular os hooks em situações excepcionais (não recomendado):
+```bash
+git commit --no-verify -m "mensagem"
+git push --no-verify
 ```
 
 ---
