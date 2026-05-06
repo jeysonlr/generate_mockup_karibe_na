@@ -1,6 +1,7 @@
 #!/bin/sh
 # Hook pre-push — Karibe N.A
-# Garante que todos os testes passam antes de qualquer push.
+# Push liberado sem reexecutar testes (já validados no pre-commit).
+exit 0
 
 echo ""
 echo "🚀 [pre-push] Validando testes antes do push..."

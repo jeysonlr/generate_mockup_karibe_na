@@ -1,7 +1,7 @@
 import * as path from 'path';
 
-// Mock sharp antes de importar o serviço
-const sharpMock = jest.fn(() => ({
+// Fábrica do mock sharp — cria nova instância a cada chamada
+const createSharpInstance = () => ({
   metadata: jest.fn().mockResolvedValue({ width: 600, height: 600 }),
   resize: jest.fn().mockReturnThis(),
   png: jest.fn().mockReturnThis(),
@@ -9,7 +9,9 @@ const sharpMock = jest.fn(() => ({
   composite: jest.fn().mockReturnThis(),
   toBuffer: jest.fn().mockResolvedValue(Buffer.from('fake-image')),
   toFile: jest.fn().mockResolvedValue({}),
-}));
+});
+
+const sharpMock = jest.fn(() => createSharpInstance());
 jest.mock('sharp', () => sharpMock);
 
 // Mock fs
@@ -62,7 +64,8 @@ describe('RenderService', () => {
 
       await service.generateMockup(inputWith2xScale);
 
-      // Com scale 2, o resize deve ser chamado com 600x600 (300 * 2)
+      // sharp é chamado na ordem: metadata(base), resize(user), composite(base)
+      // O segundo sharp (índice 1) é o da arte do usuário
       const sharpInstance = sharpMock.mock.results[1]?.value;
       expect(sharpInstance?.resize).toHaveBeenCalledWith(600, 600, expect.any(Object));
     });
@@ -75,8 +78,8 @@ describe('RenderService', () => {
 
       await service.generateMockup(inputWithRotation);
 
-      // Sharp é chamado mais de uma vez: base + user + rotação
-      expect(sharpMock).toHaveBeenCalledTimes(3);
+      // Com rotação: sharp(base).metadata + sharp(user).resize + sharp(buffer).rotate + sharp(base).composite = 4 chamadas
+      expect(sharpMock).toHaveBeenCalledTimes(4);
     });
 
     it('não deve aplicar rotação quando rotation é 0', async () => {
@@ -87,8 +90,8 @@ describe('RenderService', () => {
 
       await service.generateMockup(inputNoRotation);
 
-      // Apenas 2 instâncias de sharp: base e user image
-      expect(sharpMock).toHaveBeenCalledTimes(2);
+      // Sem rotação: sharp(base).metadata + sharp(user).resize + sharp(base).composite = 3 chamadas
+      expect(sharpMock).toHaveBeenCalledTimes(3);
     });
 
     it('deve limitar posição X dentro da área permitida', async () => {
