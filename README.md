@@ -82,10 +82,12 @@ npm run dev
 
 ## 🌐 Deploy
 
+> 📖 **Guia completo passo a passo:** [DEPLOY.md](./DEPLOY.md)
+
 | Serviço  | Plataforma         |
 |----------|--------------------|
 | Backend  | Render.com (free)  |
-| Frontend | Vercel ou Render   |
+| Frontend | Vercel (free)      |
 | Banco    | Render PostgreSQL  |
 
 Veja `POSTGRES_SETUP.md` para instruções detalhadas.
