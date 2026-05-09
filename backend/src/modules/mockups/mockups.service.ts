@@ -1,10 +1,27 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import * as path from 'path';
 import * as fs from 'fs';
-import * as sharp from 'sharp';
+import sharp from 'sharp';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RenderService } from './render.service';
 import { GenerateMockupDto } from './dto/generate-mockup.dto';
+import { MockupGenerated, Product, ProductMockupArea } from '@prisma/client';
+
+/** Tipo de retorno da geração de mockup */
+export interface GenerateMockupResult {
+  data: {
+    id: string;
+    mockupUrl: string | null;
+    backMockupUrl: string | null;
+    productId: string;
+    createdAt: Date;
+  };
+  message: string;
+  status: number;
+}
+
+/** Produto com áreas de mockup incluídas */
+type ProductWithAreas = Product & { mockupAreas: ProductMockupArea[] };
 
 @Injectable()
 export class MockupsService {
@@ -13,18 +30,20 @@ export class MockupsService {
     private readonly renderService: RenderService,
   ) {}
 
-  async generate(dto: GenerateMockupDto) {
+  async generate(dto: GenerateMockupDto): Promise<GenerateMockupResult> {
     const product = await this.prisma.product.findUnique({
       where: { id: dto.productId },
       include: { mockupAreas: true },
-    });
+    }) as ProductWithAreas | null;
 
     if (!product) throw new NotFoundException(`Produto ${dto.productId} não encontrado`);
     if (!product.mockupAreas.length) throw new BadRequestException(`Produto sem área de personalização`);
     if (!product.baseImageUrl) throw new BadRequestException(`Produto sem imagem base`);
 
-    const frontArea = product.mockupAreas.find(a => (a as any).side === 'front') ?? product.mockupAreas[0];
-    const backArea  = product.mockupAreas.find(a => (a as any).side === 'back');
+    const frontArea: ProductMockupArea =
+      product.mockupAreas.find(a => a.side === 'front') ?? product.mockupAreas[0];
+    const backArea: ProductMockupArea | undefined =
+      product.mockupAreas.find(a => a.side === 'back');
 
     // Valida: precisa ter ao menos imagem ou texto em algum lado
     const hasFrontArt = !!dto.imageUrl;
@@ -110,7 +129,7 @@ export class MockupsService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<{ data: MockupGenerated & { product: Product; variant: unknown }; message: string; status: number }> {
     const mockup = await this.prisma.mockupGenerated.findUnique({
       where: { id },
       include: { product: true, variant: true },
@@ -120,15 +139,15 @@ export class MockupsService {
       throw new NotFoundException(`Mockup ${id} não encontrado`);
     }
 
-    return { data: mockup, message: 'Mockup encontrado', status: 200 };
+    return { data: mockup as MockupGenerated & { product: Product; variant: unknown }, message: 'Mockup encontrado', status: 200 };
   }
 
-  async findAll() {
+  async findAll(): Promise<(MockupGenerated & { product: Product; variant: unknown })[]> {
     return this.prisma.mockupGenerated.findMany({
       include: { product: true, variant: true },
       orderBy: { createdAt: 'desc' },
       take: 50,
-    });
+    }) as Promise<(MockupGenerated & { product: Product; variant: unknown })[]>;
   }
 
   /**
@@ -156,7 +175,7 @@ export class MockupsService {
       svgContent = this.svgGenerico(productName);
     }
 
-    await (sharp as any)(Buffer.from(svgContent))
+    await sharp(Buffer.from(svgContent))
       .png()
       .toFile(filePath);
   }

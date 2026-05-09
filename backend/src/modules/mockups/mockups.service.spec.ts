@@ -14,7 +14,10 @@ const sharpChain = {
   png: jest.fn().mockReturnThis(),
   toFile: jest.fn().mockResolvedValue({}),
 };
-jest.mock('sharp', () => jest.fn(() => sharpChain));
+jest.mock('sharp', () => ({
+  __esModule: true,
+  default: jest.fn(() => sharpChain),
+}));
 
 import * as fs from 'fs';
 

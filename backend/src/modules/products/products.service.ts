@@ -1,12 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma, Product, ProductVariant, ProductMockupArea } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
+
+type ProductFull = Product & {
+  variants: ProductVariant[];
+  mockupAreas: ProductMockupArea[];
+};
 
 @Injectable()
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll() {
+  async findAll(): Promise<ProductFull[]> {
     return this.prisma.product.findMany({
       where: { isActive: true },
       include: {
@@ -17,7 +23,7 @@ export class ProductsService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<ProductFull> {
     const product = await this.prisma.product.findUnique({
       where: { id },
       include: {
@@ -33,14 +39,14 @@ export class ProductsService {
     return product;
   }
 
-  async create(dto: CreateProductDto) {
+  async create(dto: CreateProductDto): Promise<ProductFull> {
     return this.prisma.product.create({
       data: dto,
       include: { variants: true, mockupAreas: true },
     });
   }
 
-  async update(id: string, dto: UpdateProductDto) {
+  async update(id: string, dto: UpdateProductDto): Promise<ProductFull> {
     await this.findOne(id);
     return this.prisma.product.update({
       where: { id },
@@ -49,7 +55,7 @@ export class ProductsService {
     });
   }
 
-  async remove(id: string) {
+  async remove(id: string): Promise<Product> {
     await this.findOne(id);
     return this.prisma.product.update({
       where: { id },

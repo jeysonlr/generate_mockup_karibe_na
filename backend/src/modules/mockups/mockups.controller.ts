@@ -1,6 +1,6 @@
 import { Controller, Post, Get, Body, Param, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { MockupsService } from './mockups.service';
+import { MockupsService, GenerateMockupResult } from './mockups.service';
 import { GenerateMockupDto } from './dto/generate-mockup.dto';
 
 @ApiTags('mockups')
@@ -14,7 +14,7 @@ export class MockupsController {
   @ApiResponse({ status: 201, description: 'Mockup gerado com sucesso' })
   @ApiResponse({ status: 400, description: 'Dados inválidos ou imagem não encontrada' })
   @ApiResponse({ status: 404, description: 'Produto não encontrado' })
-  generate(@Body() dto: GenerateMockupDto) {
+  generate(@Body() dto: GenerateMockupDto): Promise<GenerateMockupResult> {
     return this.mockupsService.generate(dto);
   }
 
@@ -22,13 +22,13 @@ export class MockupsController {
   @ApiOperation({ summary: 'Buscar mockup gerado por ID (página de resultado)' })
   @ApiResponse({ status: 200, description: 'Mockup encontrado' })
   @ApiResponse({ status: 404, description: 'Mockup não encontrado' })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string): ReturnType<MockupsService['findOne']> {
     return this.mockupsService.findOne(id);
   }
 
   @Get()
   @ApiOperation({ summary: 'Listar mockups gerados (últimos 50)' })
-  findAll() {
+  findAll(): ReturnType<MockupsService['findAll']> {
     return this.mockupsService.findAll();
   }
 }

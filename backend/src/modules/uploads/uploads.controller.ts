@@ -15,6 +15,18 @@ import { v4 as uuidv4 } from 'uuid';
 
 const ALLOWED_MIMETYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml'];
 
+interface UploadResponse {
+  data: {
+    url: string;
+    filename: string;
+    originalName: string;
+    size: number;
+    mimetype: string;
+  };
+  message: string;
+  status: number;
+}
+
 @ApiTags('uploads')
 @Controller('uploads')
 export class UploadsController {
@@ -49,7 +61,7 @@ export class UploadsController {
       }),
     )
     file: Express.Multer.File,
-  ) {
+  ): UploadResponse {
     if (!file) {
       throw new BadRequestException('Arquivo não enviado');
     }

@@ -12,8 +12,11 @@ const createSharpInstance = () => ({
   toFile: jest.fn().mockResolvedValue({}),
 });
 
-const sharpMock = jest.fn(() => createSharpInstance());
-jest.mock('sharp', () => sharpMock);
+// Mock sharp com suporte a default export (import sharp from 'sharp')
+jest.mock('sharp', () => ({
+  __esModule: true,
+  default: jest.fn(() => createSharpInstance()),
+}));
 
 // Mock fs
 jest.mock('fs', () => ({
@@ -28,6 +31,10 @@ jest.mock('uuid', () => ({
 }));
 
 import { RenderService } from './render.service';
+import sharp from 'sharp';
+
+// Referência tipada ao mock do sharp para inspecionar chamadas
+const sharpMock = sharp as jest.MockedFunction<typeof sharp>;
 
 describe('RenderService', () => {
   let service: RenderService;
