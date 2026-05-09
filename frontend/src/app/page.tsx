@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { productsApi, type Product } from '@/services/api';
 import { themeConfig } from '@/config/theme.config';
 import toast from 'react-hot-toast';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
 
 const categoryLabels: Record<string, string> = {
   vestuario: '👕 Vestuário',
@@ -89,20 +90,19 @@ export default function HomePage() {
                 className="group rounded-xl overflow-hidden transition-transform hover:scale-105"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
               >
-                {/* Imagem placeholder ou real */}
+                {/* Imagem do produto */}
                 <div
-                  className="w-full h-40 flex items-center justify-center relative"
+                  className="w-full h-40 flex items-center justify-center relative overflow-hidden"
                   style={{ background: 'var(--surface-hover)' }}
                 >
                   {product.baseImageUrl ? (
-                    <Image
-                      src={`${process.env.NEXT_PUBLIC_API_URL}${product.baseImageUrl}`}
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={`${API_URL}${product.baseImageUrl}`}
                       alt={product.name}
-                      fill
-                      className="object-contain p-4"
+                      className="w-full h-full object-contain p-4"
                     />
                   ) : (
-                    // Placeholder visual quando não há imagem real
                     <span className="text-5xl select-none">
                       {product.category === 'vestuario' && '👕'}
                       {product.category === 'utilidades' && '☕'}

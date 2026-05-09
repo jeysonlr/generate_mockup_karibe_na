@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { MockupsService } from './mockups.service';
 import { GenerateMockupDto } from './dto/generate-mockup.dto';
@@ -16,6 +16,14 @@ export class MockupsController {
   @ApiResponse({ status: 404, description: 'Produto não encontrado' })
   generate(@Body() dto: GenerateMockupDto) {
     return this.mockupsService.generate(dto);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Buscar mockup gerado por ID (página de resultado)' })
+  @ApiResponse({ status: 200, description: 'Mockup encontrado' })
+  @ApiResponse({ status: 404, description: 'Mockup não encontrado' })
+  findOne(@Param('id') id: string) {
+    return this.mockupsService.findOne(id);
   }
 
   @Get()

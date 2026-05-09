@@ -14,10 +14,18 @@ import { HealthModule } from './modules/health/health.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
-      serveRoot: '/uploads',
-    }),
+    ServeStaticModule.forRoot(
+      {
+        rootPath: join(__dirname, '..', 'uploads'),
+        serveRoot: '/uploads',
+        serveStaticOptions: { index: false },
+      },
+      {
+        rootPath: join(__dirname, '..', 'public', 'placeholders'),
+        serveRoot: '/placeholders',
+        serveStaticOptions: { index: false },
+      },
+    ),
     PrismaModule,
     ProductsModule,
     UploadsModule,

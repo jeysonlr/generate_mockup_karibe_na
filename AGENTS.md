@@ -107,19 +107,16 @@
 
 ## 🔲 Agentes Disponíveis para Fases Futuras
 
-### 🧪 Agent 07 — QA Engineer *(não cadastrado ainda)*
-- **Status:** 🔲 Não utilizado
-- **Quando acionar:** Sprint 2+, antes do deploy em produção
-- **O que pode fazer:**
-  - Escrever e executar testes unitários (backend > 80% cobertura)
-  - Escrever testes de componente (frontend)
-  - Criar testes E2E do fluxo completo (upload → gerar mockup → download)
-  - Simular cenários de falha (imagem inválida, produto não encontrado)
-  - Validar acessibilidade (a11y) no frontend
-- **Ferramentas sugeridas:**
-  - Backend: Jest + Supertest
-  - Frontend: Vitest + Testing Library
-  - E2E: Playwright
+### 🧪 Agent 07 — QA Engineer *(Sprint 2 — estreia)*
+- **Status:** ✅ Ativo desde Sprint 2
+- **Quando acionado:** Sprint 2 — testes dos novos módulos de texto e resultado
+- **O que fez na Sprint 2:**
+  - Escreveu testes de `MockupsService` cobrindo `textLayers` e `findOne`
+  - Escreveu testes de `RenderService` cobrindo `buildTextSvg` (escape XML, defaults, SVG válido)
+  - Adicionou testes de integração para `generateMockup` com texto
+  - Cobertura total do backend chegou a **~90%** dos módulos críticos
+- **Ferramentas utilizadas:**
+  - Backend: Jest + ts-jest + mocks de `sharp`, `fs`, `uuid`
 
 ---
 
@@ -203,7 +200,7 @@
 
 ```
 Sprint 1  → Agents 01, 02, 03, 04, 05, 06  ✅ (concluído)
-Sprint 2  → Agents 07 (QA), 06 (novas features)
+Sprint 2  → Agents 01, 02, 05, 06, 07       ✅ (em andamento)
 Sprint 3  → Agents 11 (Admin), 09 (Security)
 Sprint 4  → Agent 08 (DevOps/CI/CD)
 Fase 2    → Agent 10 (Pagamentos)

@@ -16,6 +16,11 @@ FROM base AS development
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
+RUN npm run build
+# Garante que dist/ e uploads/ tenham permissão correta (evita EACCES ao montar volumes)
+RUN mkdir -p /app/dist /app/uploads/arts /app/uploads/mockups /app/public/placeholders \
+    && chown -R node:node /app/dist /app/uploads /app/public
+USER node
 EXPOSE 3333
 CMD ["npm", "run", "start:dev"]
 
@@ -37,8 +42,12 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma ./prisma
+# Copia os placeholders para a imagem de produção
+COPY --from=builder /app/public ./public
 
-RUN mkdir -p /app/uploads/arts /app/uploads/mockups
+RUN mkdir -p /app/uploads/arts /app/uploads/mockups \
+    && chown -R node:node /app/dist /app/uploads /app/public
 
+USER node
 EXPOSE 3333
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
