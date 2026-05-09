@@ -18,6 +18,8 @@ export interface Product {
   description: string | null;
   category: string;
   baseImageUrl: string | null;
+  backImageUrl: string | null;
+  hasSides: boolean;
   isActive: boolean;
   variants: ProductVariant[];
   mockupAreas: MockupArea[];
@@ -38,30 +40,62 @@ export interface ProductVariant {
 export interface MockupArea {
   id: string;
   productId: string;
+  side: 'front' | 'back';
   x: number;
   y: number;
   width: number;
   height: number;
 }
 
+export interface TextLayer {
+  text: string;
+  x?: number;
+  y?: number;
+  fontSize?: number;
+  color?: string;
+  fontFamily?: string;
+  fontWeight?: string;
+}
+
+export interface ArtTransformPayload {
+  x: number;
+  y: number;
+  scale: number;
+  rotation?: number;
+}
+
 export interface GenerateMockupPayload {
   productId: string;
   variantId?: string;
-  imageUrl: string;
-  transform: {
-    x: number;
-    y: number;
-    scale: number;
-    rotation?: number;
-  };
+  imageUrl?: string;
+  transform?: ArtTransformPayload;
+  textLayers?: TextLayer[];
+  // Verso (opcional)
+  backImageUrl?: string;
+  backTransform?: ArtTransformPayload;
+  backTextLayers?: TextLayer[];
 }
 
 export interface GenerateMockupResponse {
   data: {
     id: string;
     mockupUrl: string;
+    backMockupUrl: string | null;
     productId: string;
     createdAt: string;
+  };
+  message: string;
+  status: number;
+}
+
+export interface MockupResult {
+  data: {
+    id: string;
+    imageUrl: string;
+    productId: string;
+    variantId: string | null;
+    createdAt: string;
+    product: Product;
   };
   message: string;
   status: number;
@@ -87,4 +121,6 @@ export const uploadsApi = {
 export const mockupsApi = {
   generate: (payload: GenerateMockupPayload) =>
     api.post<GenerateMockupResponse>('/mockup/generate', payload),
+  getById: (id: string) =>
+    api.get<MockupResult>(`/mockup/${id}`),
 };

@@ -18,6 +18,8 @@ model Product {
   category     String
   isActive     Boolean  @default(true)
   baseImageUrl String?  @map("base_image_url")
+  backImageUrl String?  @map("back_image_url")
+  hasSides     Boolean  @default(false) @map("has_sides")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -44,6 +46,7 @@ model ProductVariant {
 model ProductMockupArea {
   id        String @id @default(uuid())
   productId String @map("product_id")
+  side      String @default("front") // "front" | "back"
   x         Int
   y         Int
   width     Int

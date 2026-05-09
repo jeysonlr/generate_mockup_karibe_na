@@ -6,13 +6,26 @@ import {
   BadRequestException,
   ParseFilePipe,
   MaxFileSizeValidator,
-  FileTypeValidator,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
+
+const ALLOWED_MIMETYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml'];
+
+interface UploadResponse {
+  data: {
+    url: string;
+    filename: string;
+    originalName: string;
+    size: number;
+    mimetype: string;
+  };
+  message: string;
+  status: number;
+}
 
 @ApiTags('uploads')
 @Controller('uploads')
@@ -44,14 +57,19 @@ export class UploadsController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10MB
-          new FileTypeValidator({ fileType: /(jpg|jpeg|png|webp|svg)$/i }),
         ],
       }),
     )
     file: Express.Multer.File,
-  ) {
+  ): UploadResponse {
     if (!file) {
       throw new BadRequestException('Arquivo não enviado');
+    }
+
+    if (!ALLOWED_MIMETYPES.includes(file.mimetype)) {
+      throw new BadRequestException(
+        `Tipo de arquivo não permitido: ${file.mimetype}. Envie uma imagem JPG, PNG, WEBP ou SVG.`,
+      );
     }
 
     return {

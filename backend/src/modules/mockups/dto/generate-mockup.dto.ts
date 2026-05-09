@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, ValidateNested } from 'class-validator';
+import { IsString, IsNumber, IsOptional, ValidateNested, IsArray, IsHexColor } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -21,6 +21,42 @@ class TransformDto {
   rotation?: number;
 }
 
+export class TextLayerDto {
+  @ApiProperty({ example: 'Karibe N.A', description: 'Texto a ser sobreposto' })
+  @IsString()
+  text: string;
+
+  @ApiPropertyOptional({ example: 120, description: 'Posição X do texto' })
+  @IsNumber()
+  @IsOptional()
+  x?: number;
+
+  @ApiPropertyOptional({ example: 80, description: 'Posição Y do texto' })
+  @IsNumber()
+  @IsOptional()
+  y?: number;
+
+  @ApiPropertyOptional({ example: 32, description: 'Tamanho da fonte em px' })
+  @IsNumber()
+  @IsOptional()
+  fontSize?: number;
+
+  @ApiPropertyOptional({ example: '#FFFFFF', description: 'Cor do texto em hex' })
+  @IsHexColor()
+  @IsOptional()
+  color?: string;
+
+  @ApiPropertyOptional({ example: 'Arial', description: 'Nome da fonte' })
+  @IsString()
+  @IsOptional()
+  fontFamily?: string;
+
+  @ApiPropertyOptional({ example: 'bold', description: 'Peso da fonte: normal | bold' })
+  @IsString()
+  @IsOptional()
+  fontWeight?: string;
+}
+
 export class GenerateMockupDto {
   @ApiProperty({ example: 'prod-camiseta-001' })
   @IsString()
@@ -31,12 +67,40 @@ export class GenerateMockupDto {
   @IsOptional()
   variantId?: string;
 
-  @ApiProperty({ example: '/uploads/arts/minha-arte.png' })
+  @ApiPropertyOptional({ example: '/uploads/arts/minha-arte.png', description: 'Omita se for apenas texto' })
   @IsString()
-  imageUrl: string;
+  @IsOptional()
+  imageUrl?: string;
 
-  @ApiProperty({ type: TransformDto })
+  @ApiPropertyOptional({ type: TransformDto })
   @ValidateNested()
   @Type(() => TransformDto)
-  transform: TransformDto;
+  @IsOptional()
+  transform?: TransformDto;
+
+  @ApiPropertyOptional({ type: [TextLayerDto], description: 'Camadas de texto na frente' })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TextLayerDto)
+  @IsOptional()
+  textLayers?: TextLayerDto[];
+
+  // ── Verso ──────────────────────────────────────────────────────
+  @ApiPropertyOptional({ example: '/uploads/arts/arte-costas.png' })
+  @IsString()
+  @IsOptional()
+  backImageUrl?: string;
+
+  @ApiPropertyOptional({ type: TransformDto })
+  @ValidateNested()
+  @Type(() => TransformDto)
+  @IsOptional()
+  backTransform?: TransformDto;
+
+  @ApiPropertyOptional({ type: [TextLayerDto], description: 'Camadas de texto no verso' })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TextLayerDto)
+  @IsOptional()
+  backTextLayers?: TextLayerDto[];
 }

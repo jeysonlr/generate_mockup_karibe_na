@@ -42,6 +42,11 @@ describe('UploadsController', () => {
       expect(() => controller.uploadFile(null as any)).toThrow(BadRequestException);
     });
 
+    it('deve lançar BadRequestException para mimetype não permitido', () => {
+      const file = { ...mockFile, mimetype: 'application/pdf', originalname: 'doc.pdf' } as Express.Multer.File;
+      expect(() => controller.uploadFile(file)).toThrow(BadRequestException);
+    });
+
     it('deve construir URL correta com o nome do arquivo', () => {
       const fileWithDifferentName: Express.Multer.File = {
         ...mockFile,
@@ -66,6 +71,18 @@ describe('UploadsController', () => {
       expect(result.data).toHaveProperty('originalName');
       expect(result.data).toHaveProperty('size');
       expect(result.data).toHaveProperty('mimetype');
+    });
+
+    it.each([
+      ['image/jpeg', 'foto.jpg'],
+      ['image/png', 'arte.png'],
+      ['image/webp', 'imagem.webp'],
+      ['image/svg+xml', 'logo.svg'],
+    ])('deve aceitar mimetype %s', (mimetype, originalname) => {
+      const file = { ...mockFile, mimetype, originalname, filename: `uuid.${originalname.split('.').pop()}` } as Express.Multer.File;
+      const result = controller.uploadFile(file);
+      expect(result.status).toBe(201);
+      expect(result.data.mimetype).toBe(mimetype);
     });
   });
 });

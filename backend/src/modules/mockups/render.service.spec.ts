@@ -6,13 +6,17 @@ const createSharpInstance = () => ({
   resize: jest.fn().mockReturnThis(),
   png: jest.fn().mockReturnThis(),
   rotate: jest.fn().mockReturnThis(),
+  ensureAlpha: jest.fn().mockReturnThis(),
   composite: jest.fn().mockReturnThis(),
   toBuffer: jest.fn().mockResolvedValue(Buffer.from('fake-image')),
   toFile: jest.fn().mockResolvedValue({}),
 });
 
-const sharpMock = jest.fn(() => createSharpInstance());
-jest.mock('sharp', () => sharpMock);
+// Mock sharp com suporte a default export (import sharp from 'sharp')
+jest.mock('sharp', () => ({
+  __esModule: true,
+  default: jest.fn(() => createSharpInstance()),
+}));
 
 // Mock fs
 jest.mock('fs', () => ({
@@ -27,6 +31,10 @@ jest.mock('uuid', () => ({
 }));
 
 import { RenderService } from './render.service';
+import sharp from 'sharp';
+
+// Referência tipada ao mock do sharp para inspecionar chamadas
+const sharpMock = sharp as jest.MockedFunction<typeof sharp>;
 
 describe('RenderService', () => {
   let service: RenderService;
@@ -107,6 +115,75 @@ describe('RenderService', () => {
     it('deve usar diretório de saída correto', () => {
       const expectedDir = path.join(process.cwd(), 'uploads', 'mockups');
       expect((service as any).outputDir).toBe(expectedDir);
+    });
+  });
+
+  describe('buildTextSvg (Sprint 2)', () => {
+    it('deve gerar SVG com texto e cor correta', () => {
+      const layer = { text: 'Karibe N.A', fontSize: 36, color: '#FF0000', fontFamily: 'Arial', fontWeight: 'bold' };
+      const svg = (service as any).buildTextSvg(layer, 800, 800);
+      const svgStr = svg.toString();
+
+      expect(svgStr).toContain('Karibe N.A');
+      expect(svgStr).toContain('#FF0000');
+      expect(svgStr).toContain('font-size="36"');
+      expect(svgStr).toContain('font-family="Arial"');
+      expect(svgStr).toContain('font-weight="bold"');
+    });
+
+    it('deve usar valores padrão quando campos são omitidos', () => {
+      const layer = { text: 'Teste' };
+      const svg = (service as any).buildTextSvg(layer, 800, 800);
+      const svgStr = svg.toString();
+
+      expect(svgStr).toContain('Teste');
+      expect(svgStr).toContain('#FFFFFF'); // cor padrão
+      expect(svgStr).toContain('font-size="32"'); // tamanho padrão
+      expect(svgStr).toContain('Arial'); // fonte padrão
+    });
+
+    it('deve escapar caracteres especiais XML no texto', () => {
+      const layer = { text: 'Arte & Cia <Karibe>' };
+      const svg = (service as any).buildTextSvg(layer, 800, 800);
+      const svgStr = svg.toString();
+
+      expect(svgStr).toContain('&amp;');
+      expect(svgStr).toContain('&lt;');
+      expect(svgStr).toContain('&gt;');
+      expect(svgStr).not.toContain('Arte & Cia <Karibe>');
+    });
+
+    it('deve retornar um Buffer válido', () => {
+      const layer = { text: 'Teste' };
+      const result = (service as any).buildTextSvg(layer, 400, 400);
+      expect(Buffer.isBuffer(result)).toBe(true);
+    });
+  });
+
+  describe('generateMockup com textLayers (Sprint 2)', () => {
+    it('deve incluir SVG de texto na composição quando textLayers fornecido', async () => {
+      const inputComTexto = {
+        ...baseInput,
+        textLayers: [{ text: 'Karibe', fontSize: 32, color: '#FFF' }],
+      };
+
+      const result = await service.generateMockup(inputComTexto);
+
+      expect(result).toContain('/uploads/mockups/mockup_');
+      // composite deve ser chamado com 2 items: arte do usuário + texto
+      const compositeInstance = sharpMock.mock.results[2]?.value;
+      expect(compositeInstance?.composite).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ blend: 'over' }), // arte
+          expect.objectContaining({ blend: 'over' }), // texto SVG
+        ]),
+      );
+    });
+
+    it('deve funcionar sem textLayers (array vazio)', async () => {
+      const inputSemTexto = { ...baseInput, textLayers: [] };
+      const result = await service.generateMockup(inputSemTexto);
+      expect(result).toContain('/uploads/mockups/mockup_');
     });
   });
 });

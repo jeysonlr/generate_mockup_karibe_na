@@ -1,7 +1,7 @@
 # 📋 Project Status — Karibe N.A Mockup Generator
 
 > Documento mantido pelo **Agent 01 (Product Owner)** + **Agent 02 (Scrum Master)**
-> Última atualização: 2026-05-06
+> Última atualização: 2026-05-09 — Sprint 2 concluída
 
 ---
 
@@ -9,6 +9,47 @@
 
 Sistema que permite usuários escolherem um produto (camiseta, caneca, boné, chinelo etc.),
 enviarem uma arte, ajustarem no editor visual e gerarem um mockup final para download ou envio via WhatsApp.
+
+---
+
+## 📦 Sprint 2 — Experiência do Editor ✅ CONCLUÍDA
+
+> **Agentes ativos:** Agent 01 (PO), Agent 02 (SM), Agent 03 (Architect), Agent 05 (Backend), Agent 06 (Frontend), Agent 07 (QA)
+> **Início:** 2026-05-06 | **Conclusão:** 2026-05-09
+
+### 🎯 Meta da Sprint
+Entregar uma experiência de editor completa: o usuário consegue adicionar texto com fonte e cor, rotacionar a arte, ver a página de resultado e compartilhar via WhatsApp.
+
+### ✅ Concluído
+
+#### Backend
+- [x] `POST /mockup/generate` suporta texto sobreposto (fonte, cor, posição, peso)
+- [x] `GET /mockup/:id` — endpoint para buscar mockup por ID (página de resultado)
+- [x] `RenderService` suporta `textLayers` via SVG overlay
+- [x] `GenerateMockupDto` com `textLayers[]`, `backImageUrl`, `backTransform`, `backTextLayers`
+- [x] Suporte a mockup frente + verso (campos `backImageUrl`, `backTransform`, `backTextLayers`)
+- [x] Geração condicional: frente e/ou costa — qualquer combinação válida
+- [x] Validação flexível: permite conteúdo só na frente, só na costa ou em ambos
+- [x] Placeholders PNG gerados programaticamente para todos os produtos (camiseta, caneca, boné, chinelo, costa da camiseta, verso da caneca)
+- [x] `MockupsService.findOne()` implementado com NotFoundException
+- [x] Testes unitários: `MockupsService` Sprint 2 — 10 casos
+- [x] Testes unitários: `RenderService` Sprint 2 — `buildTextSvg` e `generateMockup` com texto
+- [x] ADR-005 documentado — estratégia SVG para texto no servidor
+
+#### Frontend
+- [x] Componente `TextPanel.tsx` — painel de texto (fonte, cor, tamanho, peso)
+- [x] Texto arrastável e redimensionável no canvas por lado (frente/costa)
+- [x] Controle de rotação da arte (slider + reset)
+- [x] Editor com suporte a **frente e verso** independentes (estado por lado)
+- [x] Abas Frente / Costa no sidebar e acima do canvas
+- [x] Upload de arte independente por lado
+- [x] Arte centralizada automaticamente na área de personalização ao carregar
+- [x] Imagem do produto troca corretamente ao alternar entre abas (com `key` forçando reload)
+- [x] Download individual (frente), individual (costa) e **combinado frente+costa** num único PNG
+- [x] Botão "Gerar Mockup" habilitado com conteúdo em qualquer lado
+- [x] Página `/resultado/[id]` — preview, download PNG e compartilhar via WhatsApp
+- [x] `api.ts` atualizado — `TextLayer`, `MockupResult`, `mockupsApi.getById`, `backImageUrl`
+- [x] `editor.store.ts` atualizado — `textLayers`, `generatedMockupId`, ações CRUD de texto
 
 ---
 
@@ -46,14 +87,7 @@ enviarem uma arte, ajustarem no editor visual e gerarem um mockup final para dow
 
 ## 🔲 Backlog — Próximas Sprints
 
-### Sprint 2 — Experiência do Editor
-- [ ] Adicionar texto sobre o produto
-- [ ] Escolha de fonte e cor do texto
-- [ ] Rotação da arte no editor
-- [ ] Compartilhar via WhatsApp (link direto com imagem)
-- [ ] Página de resultado com preview + botões de ação
-
-### Sprint 3 — Admin & Catálogo Dinâmico
+### Sprint 3 — Admin & Catálogo Dinâmico (PRÓXIMA)
 - [ ] Painel admin simples (autenticação JWT)
 - [ ] CRUD de produtos pelo admin (sem precisar de dev)
 - [ ] Upload de imagem base do produto pelo admin
@@ -115,6 +149,13 @@ enviarem uma arte, ajustarem no editor visual e gerarem um mockup final para dow
 - **Status:** Aceita
 - **Decisão:** Render síncrono no MVP
 - **Evolução:** Adicionar BullMQ + Redis quando necessário
+
+### ADR-005: Renderização de texto no servidor com Sharp + fontes locais
+- **Status:** Proposta (Sprint 2)
+- **Decisão:** Usar Sharp com `text` overlay via SVG intermediário para renderizar texto no mockup final
+- **Motivo:** Sharp não suporta texto nativo; SVG como camada intermediária é leve, sem dependência de browser e mantém qualidade vetorial
+- **Alternativa descartada:** Canvas no servidor (pesado, complexo de configurar no Alpine)
+- **Impacto:** `render.service.ts` recebe campo `textLayers[]` opcional no DTO
 
 ---
 

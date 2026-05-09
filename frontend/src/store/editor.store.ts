@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { TextLayer } from '../services/api';
 
 interface EditorTransform {
   x: number;
@@ -21,7 +22,11 @@ interface EditorState {
 
   // Mockup gerado
   generatedMockupUrl: string | null;
+  generatedMockupId: string | null;
   isGenerating: boolean;
+
+  // Camadas de texto
+  textLayers: TextLayer[];
 
   // Actions
   setProduct: (productId: string) => void;
@@ -29,7 +34,11 @@ interface EditorState {
   setUploadedImage: (url: string, localUrl: string) => void;
   setTransform: (transform: Partial<EditorTransform>) => void;
   setGeneratedMockup: (url: string | null) => void;
+  setGeneratedMockupId: (id: string | null) => void;
   setIsGenerating: (value: boolean) => void;
+  addTextLayer: (layer: TextLayer) => void;
+  updateTextLayer: (index: number, layer: Partial<TextLayer>) => void;
+  removeTextLayer: (index: number) => void;
   reset: () => void;
 }
 
@@ -47,10 +56,12 @@ export const useEditorStore = create<EditorState>((set) => ({
   uploadedImageLocalUrl: null,
   transform: defaultTransform,
   generatedMockupUrl: null,
+  generatedMockupId: null,
   isGenerating: false,
+  textLayers: [],
 
   setProduct: (productId) =>
-    set({ selectedProductId: productId, selectedVariantId: null, generatedMockupUrl: null }),
+    set({ selectedProductId: productId, selectedVariantId: null, generatedMockupUrl: null, generatedMockupId: null }),
 
   setVariant: (variantId) =>
     set({ selectedVariantId: variantId, generatedMockupUrl: null }),
@@ -65,6 +76,19 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   setIsGenerating: (value) => set({ isGenerating: value }),
 
+  addTextLayer: (layer) =>
+    set((state) => ({ textLayers: [...state.textLayers, layer] })),
+
+  updateTextLayer: (index, partial) =>
+    set((state) => ({
+      textLayers: state.textLayers.map((l, i) => (i === index ? { ...l, ...partial } : l)),
+    })),
+
+  removeTextLayer: (index) =>
+    set((state) => ({ textLayers: state.textLayers.filter((_, i) => i !== index) })),
+
+  setGeneratedMockupId: (id) => set({ generatedMockupId: id }),
+
   reset: () =>
     set({
       selectedProductId: null,
@@ -73,6 +97,8 @@ export const useEditorStore = create<EditorState>((set) => ({
       uploadedImageLocalUrl: null,
       transform: defaultTransform,
       generatedMockupUrl: null,
+      generatedMockupId: null,
       isGenerating: false,
+      textLayers: [],
     }),
 }));
