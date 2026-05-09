@@ -18,9 +18,8 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 # Garante que dist/ e uploads/ tenham permissão correta (evita EACCES ao montar volumes)
-RUN mkdir -p /app/dist /app/uploads/arts /app/uploads/mockups /app/public/placeholders \
-    && chown -R node:node /app/dist /app/uploads /app/public
-USER node
+RUN mkdir -p /app/dist /app/uploads/arts /app/uploads/mockups /app/public/placeholders
+# Em modo desenvolvimento não usamos USER node para evitar EACCES em volumes nomeados
 EXPOSE 3333
 CMD ["npm", "run", "start:dev"]
 

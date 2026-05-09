@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import sharp from 'sharp';
+import * as sharpLib from 'sharp';
+import type { OverlayOptions } from 'sharp';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const sharp: typeof sharpLib = (sharpLib as any).default ?? sharpLib;
 import * as path from 'path';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
@@ -84,7 +87,7 @@ export class RenderService {
     const baseWidth = baseMeta.width ?? 800;
     const baseHeight = baseMeta.height ?? 800;
 
-    const composites: sharp.OverlayOptions[] = [];
+    const composites: OverlayOptions[] = [];
 
     // Arte do usuário (pode ser pulada se for só texto no verso)
     if (!skipUserImage) {

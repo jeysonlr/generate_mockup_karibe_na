@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import * as path from 'path';
 import * as fs from 'fs';
-import sharp from 'sharp';
+import * as sharpLib from 'sharp';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const sharp: typeof sharpLib = (sharpLib as any).default ?? sharpLib;
 import { PrismaService } from '../../prisma/prisma.service';
 import { RenderService } from './render.service';
 import { GenerateMockupDto } from './dto/generate-mockup.dto';
