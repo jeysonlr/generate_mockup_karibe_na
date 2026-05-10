@@ -6,17 +6,27 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // CORS — aceita múltiplas origens separadas por vírgula
+  // CORS — aceita origens explícitas + subdomínios *.vercel.app do projeto
   const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
     .split(',')
-    .map((url) => url.trim());
+    .map((url) => url.trim())
+    .filter(Boolean);
+
+  // Regex para aceitar qualquer preview/deploy da Vercel do mesmo projeto
+  const vercelProjectPattern = process.env.VERCEL_PROJECT_PATTERN
+    ? new RegExp(process.env.VERCEL_PROJECT_PATTERN)
+    : /^https:\/\/generate-mockup-karibe-na[\w-]*\.vercel\.app$/;
 
   app.enableCors({
     origin: (origin, callback) => {
-      // Permite requisições sem origin (ex: Postman, Render health checks)
+      // Permite requisições sem origin (Postman, health checks do Render)
       if (!origin) return callback(null, true);
+      // Origem explícita na lista
       if (allowedOrigins.includes(origin)) return callback(null, true);
-      callback(new Error(`CORS bloqueado para: ${origin}`));
+      // Subdomínio da Vercel do projeto
+      if (vercelProjectPattern.test(origin)) return callback(null, true);
+      // Retorna false sem lançar erro — evita 500 e deixa o browser tratar o CORS
+      return callback(null, false);
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     credentials: true,
