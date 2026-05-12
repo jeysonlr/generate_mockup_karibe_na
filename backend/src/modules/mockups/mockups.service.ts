@@ -56,13 +56,22 @@ export class MockupsService {
       throw new BadRequestException('Envie ao menos uma imagem ou texto para gerar o mockup');
     }
 
+    // ── Helpers de path ──────────────────────────────────────────────────────
+    /** Imagens do produto ficam em public/ (ex: /placeholders/...) */
+    const toProductPath = (p: string): string =>
+      path.join(process.cwd(), 'public', p.replace(/^\/+/, ''));
+
+    /** Uploads do usuário ficam em uploads/ na raiz do cwd (ex: /uploads/arts/...) */
+    const toUploadPath = (p: string): string =>
+      path.join(process.cwd(), p.replace(/^\/+/, ''));
+
     // ── Frente ──────────────────────────────────────────────────────────────
-    const baseImagePath = path.join(process.cwd(), 'public', product.baseImageUrl);
+    const baseImagePath = toProductPath(product.baseImageUrl);
     if (!fs.existsSync(baseImagePath)) await this.ensurePlaceholder(baseImagePath, product.name);
 
     let userImagePath: string | undefined;
     if (hasFrontArt) {
-      userImagePath = path.join(process.cwd(), dto.imageUrl!);
+      userImagePath = toUploadPath(dto.imageUrl!);
       if (!fs.existsSync(userImagePath)) throw new BadRequestException(`Imagem não encontrada: ${dto.imageUrl}`);
     }
 
@@ -73,7 +82,12 @@ export class MockupsService {
         baseImagePath,
         userImagePath: userImagePath ?? baseImagePath,
         area: { x: frontArea.x, y: frontArea.y, width: frontArea.width, height: frontArea.height },
-        transform: dto.transform ?? { x: 0, y: 0, scale: 1, rotation: 0 },
+        transform: {
+          x: dto.transform?.x ?? 0,
+          y: dto.transform?.y ?? 0,
+          scale: dto.transform?.scale ?? 1,
+          rotation: dto.transform?.rotation ?? 0,
+        },
         textLayers: dto.textLayers ?? [],
         skipUserImage: !hasFrontArt,
       });
@@ -84,16 +98,12 @@ export class MockupsService {
 
     const hasBackContent = dto.backImageUrl || (dto.backTextLayers && dto.backTextLayers.length > 0);
     if (hasBackContent && backArea && (product.backImageUrl || product.baseImageUrl)) {
-      const backBaseImagePath = path.join(
-        process.cwd(),
-        'public',
-        (product.backImageUrl ?? product.baseImageUrl)!,
-      );
+      const backBaseImagePath = toProductPath((product.backImageUrl ?? product.baseImageUrl)!);
       if (!fs.existsSync(backBaseImagePath)) await this.ensurePlaceholder(backBaseImagePath, `${product.name} costa`);
 
       let backUserImagePath: string | undefined;
       if (dto.backImageUrl) {
-        backUserImagePath = path.join(process.cwd(), dto.backImageUrl);
+        backUserImagePath = toUploadPath(dto.backImageUrl);
         if (!fs.existsSync(backUserImagePath)) backUserImagePath = undefined;
       }
 

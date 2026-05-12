@@ -3,17 +3,20 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 class TransformDto {
-  @ApiProperty({ example: 100, description: 'Posição X da arte no produto' })
+  @ApiPropertyOptional({ example: 0, description: 'Posição X da arte no produto' })
   @IsNumber()
-  x: number;
+  @IsOptional()
+  x?: number;
 
-  @ApiProperty({ example: 80, description: 'Posição Y da arte no produto' })
+  @ApiPropertyOptional({ example: 0, description: 'Posição Y da arte no produto' })
   @IsNumber()
-  y: number;
+  @IsOptional()
+  y?: number;
 
-  @ApiProperty({ example: 1.0, description: 'Escala da arte (1.0 = tamanho original da área)' })
+  @ApiPropertyOptional({ example: 1.0, description: 'Escala da arte (1.0 = tamanho original da área)' })
   @IsNumber()
-  scale: number;
+  @IsOptional()
+  scale?: number;
 
   @ApiPropertyOptional({ example: 0, description: 'Rotação em graus' })
   @IsNumber()
