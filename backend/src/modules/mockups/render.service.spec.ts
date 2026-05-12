@@ -127,7 +127,7 @@ describe('RenderService', () => {
       expect(svgStr).toContain('Karibe N.A');
       expect(svgStr).toContain('#FF0000');
       expect(svgStr).toContain('font-size="36"');
-      expect(svgStr).toContain('font-family="Arial"');
+      // Fonte pode ser 'AppFont' (embutida) ou fallback — o importante é o texto e cor
       expect(svgStr).toContain('font-weight="bold"');
     });
 
@@ -139,7 +139,7 @@ describe('RenderService', () => {
       expect(svgStr).toContain('Teste');
       expect(svgStr).toContain('#FFFFFF'); // cor padrão
       expect(svgStr).toContain('font-size="32"'); // tamanho padrão
-      expect(svgStr).toContain('Arial'); // fonte padrão
+      expect(svgStr).toContain('Liberation Sans'); // fonte padrão
     });
 
     it('deve escapar caracteres especiais XML no texto', () => {

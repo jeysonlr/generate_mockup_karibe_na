@@ -309,7 +309,9 @@ export default function EditorPage() {
         if (backTexts.length > 0) payload.backTextLayers = backTexts;
       }
 
+      console.log('[handleGenerate] payload enviado:', JSON.stringify(payload, null, 2));
       const res = await mockupsApi.generate(payload);
+      console.log('[handleGenerate] resposta:', JSON.stringify(res.data, null, 2));
       setGeneratedMockup(res.data.data.mockupUrl ?? res.data.data.backMockupUrl);
       setBackMockupUrl(
         res.data.data.mockupUrl && res.data.data.backMockupUrl
@@ -317,7 +319,9 @@ export default function EditorPage() {
           : null
       );
       toast.success('Mockup gerado!');
-    } catch {
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: unknown } };
+      console.error('[handleGenerate] erro:', axiosErr?.response?.data ?? err);
       toast.error('Erro ao gerar mockup');
     } finally {
       setIsGenerating(false);

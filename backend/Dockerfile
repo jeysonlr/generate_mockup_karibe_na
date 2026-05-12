@@ -3,8 +3,10 @@
 # ---- Base ----
 FROM node:20-alpine AS base
 WORKDIR /app
-# openssl3 (requerido pelo Prisma no Alpine), build tools para o Sharp
-RUN apk add --no-cache libc6-compat openssl openssl-dev python3 make g++ vips-dev
+# openssl3 (requerido pelo Prisma no Alpine), build tools para o Sharp, fontes para librsvg renderizar texto
+RUN apk add --no-cache libc6-compat openssl openssl-dev python3 make g++ vips-dev \
+    fontconfig ttf-dejavu ttf-liberation font-noto \
+    && fc-cache -f
 
 # ---- Dependencies ----
 FROM base AS deps
@@ -33,7 +35,9 @@ RUN npm run build
 # ---- Production ----
 FROM node:20-alpine AS production
 WORKDIR /app
-RUN apk add --no-cache libc6-compat openssl vips-dev
+RUN apk add --no-cache libc6-compat openssl vips-dev \
+    fontconfig ttf-dejavu ttf-liberation font-noto \
+    && fc-cache -f
 
 ENV NODE_ENV=production
 

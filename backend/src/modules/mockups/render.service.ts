@@ -26,10 +26,10 @@ export interface RenderInput {
     width: number;
     height: number;
   };
-  transform: {
-    x: number;
-    y: number;
-    scale: number;
+  transform?: {
+    x?: number;
+    y?: number;
+    scale?: number;
     rotation?: number;
   };
   textLayers?: TextLayer[];
@@ -47,12 +47,11 @@ export class RenderService {
     }
   }
 
-  /** Gera um SVG com o texto para usar como overlay no Sharp */
+  /** Gera um SVG com o texto usando fontes do sistema (Liberation/DejaVu instaladas no container) */
   private buildTextSvg(layer: TextLayer, width: number, height: number): Buffer {
     const fontSize = layer.fontSize ?? 32;
     const color = layer.color ?? '#FFFFFF';
-    const fontFamily = layer.fontFamily ?? 'Arial, sans-serif';
-    const fontWeight = layer.fontWeight ?? 'normal';
+    const fontWeight = layer.fontWeight === 'bold' ? 'bold' : 'normal';
     const x = layer.x ?? Math.round(width / 2);
     const y = layer.y ?? Math.round(height / 2);
 
@@ -63,12 +62,13 @@ export class RenderService {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
 
+    // Liberation Sans é compatível com Arial e está instalada no container Alpine
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
       <text
         x="${x}"
         y="${y}"
         font-size="${fontSize}"
-        font-family="${fontFamily}"
+        font-family="Liberation Sans, DejaVu Sans, Arial, sans-serif"
         font-weight="${fontWeight}"
         fill="${color}"
         text-anchor="middle"
@@ -82,6 +82,12 @@ export class RenderService {
   async generateMockup(input: RenderInput): Promise<string> {
     const { baseImagePath, userImagePath, area, transform, textLayers, skipUserImage } = input;
 
+    // Defaults seguros para transform — nunca NaN ou undefined
+    const tx = transform?.x ?? 0;
+    const ty = transform?.y ?? 0;
+    const tscale = (transform?.scale != null && isFinite(transform.scale) && transform.scale > 0) ? transform.scale : 1;
+    const trotation = transform?.rotation ?? 0;
+
     const baseBuffer = fs.readFileSync(baseImagePath);
     const baseMeta = await sharp(baseBuffer).metadata();
     const baseWidth = baseMeta.width ?? 800;
@@ -91,8 +97,8 @@ export class RenderService {
 
     // Arte do usuário (pode ser pulada se for só texto no verso)
     if (!skipUserImage) {
-      const targetWidth = Math.min(Math.round(area.width * transform.scale), baseWidth);
-      const targetHeight = Math.min(Math.round(area.height * transform.scale), baseHeight);
+      const targetWidth = Math.min(Math.round(area.width * tscale), baseWidth);
+      const targetHeight = Math.min(Math.round(area.height * tscale), baseHeight);
 
       let userImageBuffer = await sharp(userImagePath)
         .resize(targetWidth, targetHeight, {
@@ -103,9 +109,9 @@ export class RenderService {
         .png()
         .toBuffer();
 
-      if (transform.rotation && transform.rotation !== 0) {
+      if (trotation !== 0) {
         userImageBuffer = await sharp(userImageBuffer)
-          .rotate(transform.rotation, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
+          .rotate(trotation, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
           .resize(targetWidth, targetHeight, {
             fit: 'contain',
             background: { r: 0, g: 0, b: 0, alpha: 0 },
@@ -115,8 +121,8 @@ export class RenderService {
           .toBuffer();
       }
 
-      const posX = Math.max(0, Math.min(Math.round(area.x + transform.x), baseWidth - targetWidth));
-      const posY = Math.max(0, Math.min(Math.round(area.y + transform.y), baseHeight - targetHeight));
+      const posX = Math.max(0, Math.min(Math.round(area.x + tx), baseWidth - targetWidth));
+      const posY = Math.max(0, Math.min(Math.round(area.y + ty), baseHeight - targetHeight));
 
       composites.push({ input: userImageBuffer, left: posX, top: posY, blend: 'over' });
     }
