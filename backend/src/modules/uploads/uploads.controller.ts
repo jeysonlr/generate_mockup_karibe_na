@@ -4,16 +4,13 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
-  ParseFilePipe,
-  MaxFileSizeValidator,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { memoryStorage } from 'multer';
 
 const ALLOWED_MIMETYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml'];
+const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
 interface UploadResponse {
   data: {
@@ -31,51 +28,23 @@ interface UploadResponse {
 @Controller('uploads')
 export class UploadsController {
   @Post()
-  @ApiOperation({ summary: 'Fazer upload de uma imagem' })
+  @ApiOperation({ summary: 'Fazer upload de uma imagem (retorna base64)' })
   @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        file: { type: 'string', format: 'binary' },
-      },
-    },
-  })
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads/arts',
-        filename: (_req, file, cb) => {
-          const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
-          cb(null, uniqueName);
-        },
-      }),
-    }),
-  )
-  uploadFile(
-    @UploadedFile(
-      new ParseFilePipe({
-        validators: [
-          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10MB
-        ],
-      }),
-    )
-    file: Express.Multer.File,
-  ): UploadResponse {
-    if (!file) {
-      throw new BadRequestException('Arquivo não enviado');
-    }
+  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  uploadFile(@UploadedFile() file: Express.Multer.File): UploadResponse {
+    if (!file) throw new BadRequestException('Arquivo não enviado');
+    if (!ALLOWED_MIMETYPES.includes(file.mimetype))
+      throw new BadRequestException(`Tipo não permitido: ${file.mimetype}. Use JPG, PNG, WEBP ou SVG.`);
+    if (file.size > MAX_SIZE)
+      throw new BadRequestException('Arquivo muito grande. Máximo: 10 MB.');
 
-    if (!ALLOWED_MIMETYPES.includes(file.mimetype)) {
-      throw new BadRequestException(
-        `Tipo de arquivo não permitido: ${file.mimetype}. Envie uma imagem JPG, PNG, WEBP ou SVG.`,
-      );
-    }
+    const base64 = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
 
     return {
       data: {
-        url: `/uploads/arts/${file.filename}`,
-        filename: file.filename,
+        url: base64,
+        filename: file.originalname,
         originalName: file.originalname,
         size: file.size,
         mimetype: file.mimetype,

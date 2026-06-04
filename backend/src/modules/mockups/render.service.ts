@@ -3,9 +3,6 @@ import * as sharpLib from 'sharp';
 import type { OverlayOptions } from 'sharp';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sharp: typeof sharpLib = (sharpLib as any).default ?? sharpLib;
-import * as path from 'path';
-import * as fs from 'fs';
-import { v4 as uuidv4 } from 'uuid';
 
 export interface TextLayer {
   text: string;
@@ -17,134 +14,97 @@ export interface TextLayer {
   fontWeight?: string;
 }
 
-export interface RenderInput {
-  baseImagePath: string;
-  userImagePath: string;
-  area: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  transform?: {
-    x?: number;
-    y?: number;
-    scale?: number;
-    rotation?: number;
-  };
+export interface RenderBufferInput {
+  baseBuffer: Buffer;
+  userBuffer: Buffer;
+  /**
+   * Posição e tamanho absolutos da arte no espaço da imagem base (pixels).
+   * O frontend envia esses valores já convertidos para o espaço 800×800.
+   */
+  artRect: { x: number; y: number; width: number; height: number };
+  rotation?: number;
   textLayers?: TextLayer[];
-  /** Se true, não renderiza a arte do usuário (apenas texto) */
   skipUserImage?: boolean;
 }
 
 @Injectable()
 export class RenderService {
-  private readonly outputDir = path.join(process.cwd(), 'uploads', 'mockups');
-
-  constructor() {
-    if (!fs.existsSync(this.outputDir)) {
-      fs.mkdirSync(this.outputDir, { recursive: true });
-    }
-  }
-
-  /** Gera um SVG com o texto usando fontes do sistema (Liberation/DejaVu instaladas no container) */
+  /** Gera um SVG com o texto usando fontes do sistema */
   private buildTextSvg(layer: TextLayer, width: number, height: number): Buffer {
     const fontSize = layer.fontSize ?? 32;
     const color = layer.color ?? '#FFFFFF';
     const fontWeight = layer.fontWeight === 'bold' ? 'bold' : 'normal';
     const x = layer.x ?? Math.round(width / 2);
     const y = layer.y ?? Math.round(height / 2);
-
-    // Escapa caracteres especiais XML
     const safeText = layer.text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-
-    // Liberation Sans é compatível com Arial e está instalada no container Alpine
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-      <text
-        x="${x}"
-        y="${y}"
-        font-size="${fontSize}"
+      <text x="${x}" y="${y}" font-size="${fontSize}"
         font-family="Liberation Sans, DejaVu Sans, Arial, sans-serif"
-        font-weight="${fontWeight}"
-        fill="${color}"
-        text-anchor="middle"
-        dominant-baseline="middle"
-      >${safeText}</text>
+        font-weight="${fontWeight}" fill="${color}"
+        text-anchor="middle" dominant-baseline="middle">${safeText}</text>
     </svg>`;
-
     return Buffer.from(svg);
   }
 
-  async generateMockup(input: RenderInput): Promise<string> {
-    const { baseImagePath, userImagePath, area, transform, textLayers, skipUserImage } = input;
+  /** Composição em memória — retorna base64 data URI (sem tocar em disco) */
+  async generateMockupFromBuffers(input: RenderBufferInput): Promise<string> {
+    const { baseBuffer, userBuffer, artRect, rotation, textLayers, skipUserImage } = input;
 
-    // Defaults seguros para transform — nunca NaN ou undefined
-    const tx = transform?.x ?? 0;
-    const ty = transform?.y ?? 0;
-    const tscale = (transform?.scale != null && isFinite(transform.scale) && transform.scale > 0) ? transform.scale : 1;
-    const trotation = transform?.rotation ?? 0;
+    const trotation = rotation ?? 0;
 
-    const baseBuffer = fs.readFileSync(baseImagePath);
-    const baseMeta = await sharp(baseBuffer).metadata();
-    const baseWidth = baseMeta.width ?? 800;
-    const baseHeight = baseMeta.height ?? 800;
+    // Espaço de trabalho fixo: sempre 800×800 (mesmo espaço usado pelo frontend)
+    const WORK_SIZE = 800;
+
+    // Normaliza a imagem base para 800×800 (contain, fundo transparente)
+    // Isso garante que imagens enviadas pelo admin com qualquer resolução funcionem corretamente
+    const normalizedBase = await sharp(baseBuffer)
+      .resize(WORK_SIZE, WORK_SIZE, {
+        fit: 'contain',
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      })
+      .ensureAlpha()
+      .png()
+      .toBuffer();
+
+    // Garante que artRect fique dentro dos limites do espaço 800×800
+    const artX = Math.max(0, Math.min(Math.round(artRect.x), WORK_SIZE - 1));
+    const artY = Math.max(0, Math.min(Math.round(artRect.y), WORK_SIZE - 1));
+    const artW = Math.max(1, Math.min(Math.round(artRect.width),  WORK_SIZE - artX));
+    const artH = Math.max(1, Math.min(Math.round(artRect.height), WORK_SIZE - artY));
 
     const composites: OverlayOptions[] = [];
 
-    // Arte do usuário (pode ser pulada se for só texto no verso)
     if (!skipUserImage) {
-      const targetWidth = Math.min(Math.round(area.width * tscale), baseWidth);
-      const targetHeight = Math.min(Math.round(area.height * tscale), baseHeight);
-
-      let userImageBuffer = await sharp(userImagePath)
-        .resize(targetWidth, targetHeight, {
-          fit: 'fill',
-          background: { r: 0, g: 0, b: 0, alpha: 0 },
-        })
-        .ensureAlpha()
-        .png()
-        .toBuffer();
+      let artBuf = await sharp(userBuffer)
+        .resize(artW, artH, { fit: 'fill', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+        .ensureAlpha().png().toBuffer();
 
       if (trotation !== 0) {
-        userImageBuffer = await sharp(userImageBuffer)
+        artBuf = await sharp(artBuf)
           .rotate(trotation, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
-          .resize(targetWidth, targetHeight, {
-            fit: 'contain',
-            background: { r: 0, g: 0, b: 0, alpha: 0 },
-          })
-          .ensureAlpha()
-          .png()
-          .toBuffer();
+          .resize(artW, artH, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+          .ensureAlpha().png().toBuffer();
       }
 
-      const posX = Math.max(0, Math.min(Math.round(area.x + tx), baseWidth - targetWidth));
-      const posY = Math.max(0, Math.min(Math.round(area.y + ty), baseHeight - targetHeight));
-
-      composites.push({ input: userImageBuffer, left: posX, top: posY, blend: 'over' });
+      composites.push({ input: artBuf, left: artX, top: artY, blend: 'over' });
     }
 
-    // Camadas de texto
     if (textLayers && textLayers.length > 0) {
       for (const layer of textLayers) {
-        const svgBuffer = this.buildTextSvg(layer, baseWidth, baseHeight);
-        composites.push({ input: svgBuffer, blend: 'over' });
+        composites.push({ input: this.buildTextSvg(layer, WORK_SIZE, WORK_SIZE), blend: 'over' });
       }
     }
 
-    const outputFilename = `mockup_${uuidv4()}.png`;
-    const outputPath = path.join(this.outputDir, outputFilename);
-
-    await sharp(baseBuffer)
-      .resize(baseWidth, baseHeight)
+    const pngBuffer = await sharp(normalizedBase)
+      .resize(WORK_SIZE, WORK_SIZE)
       .ensureAlpha()
       .composite(composites)
       .png()
-      .toFile(outputPath);
+      .toBuffer();
 
-    return `/uploads/mockups/${outputFilename}`;
+    return `data:image/png;base64,${pngBuffer.toString('base64')}`;
   }
+
 }

@@ -1,6 +1,4 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import * as path from 'path';
-import * as fs from 'fs';
 import * as sharpLib from 'sharp';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sharp: typeof sharpLib = (sharpLib as any).default ?? sharpLib;
@@ -23,7 +21,11 @@ export interface GenerateMockupResult {
 }
 
 /** Produto com áreas de mockup incluídas */
-type ProductWithAreas = Product & { mockupAreas: ProductMockupArea[] };
+type ProductWithAreas = Product & {
+  mockupAreas: ProductMockupArea[];
+  baseImageData?: string | null;
+  backImageData?: string | null;
+};
 
 @Injectable()
 export class MockupsService {
@@ -40,99 +42,106 @@ export class MockupsService {
 
     if (!product) throw new NotFoundException(`Produto ${dto.productId} não encontrado`);
     if (!product.mockupAreas.length) throw new BadRequestException(`Produto sem área de personalização`);
-    if (!product.baseImageUrl) throw new BadRequestException(`Produto sem imagem base`);
 
     const frontArea: ProductMockupArea =
       product.mockupAreas.find(a => a.side === 'front') ?? product.mockupAreas[0];
     const backArea: ProductMockupArea | undefined =
       product.mockupAreas.find(a => a.side === 'back');
 
-    // Valida: precisa ter ao menos imagem ou texto em algum lado
-    const hasFrontArt = !!dto.imageUrl;
+    const hasFrontArt  = !!dto.imageUrl;
     const hasFrontText = dto.textLayers && dto.textLayers.length > 0;
-    const hasBackArt  = !!dto.backImageUrl;
-    const hasBackText = dto.backTextLayers && dto.backTextLayers.length > 0;
+    const hasBackArt   = !!dto.backImageUrl;
+    const hasBackText  = dto.backTextLayers && dto.backTextLayers.length > 0;
+
     if (!hasFrontArt && !hasFrontText && !hasBackArt && !hasBackText) {
       throw new BadRequestException('Envie ao menos uma imagem ou texto para gerar o mockup');
     }
 
-    // ── Helpers de path ──────────────────────────────────────────────────────
-    /** Imagens do produto ficam em public/ (ex: /placeholders/...) */
-    const toProductPath = (p: string): string =>
-      path.join(process.cwd(), 'public', p.replace(/^\/+/, ''));
+    // ── Converte qualquer fonte de imagem em Buffer ───────────────────────────
+    /** Aceita APENAS: data URI base64 ou URL HTTP(S). Sem leitura de disco. */
+    const toBuffer = async (src: string): Promise<Buffer> => {
+      if (src.startsWith('data:')) {
+        const base64 = src.split(',')[1];
+        return Buffer.from(base64, 'base64');
+      }
+      if (src.startsWith('http://') || src.startsWith('https://')) {
+        const res = await fetch(src);
+        if (!res.ok) throw new BadRequestException(`Não foi possível baixar imagem: ${src}`);
+        return Buffer.from(await res.arrayBuffer());
+      }
+      // Qualquer path de arquivo local é rejeitado — tudo deve vir do banco
+      throw new BadRequestException(
+        `Imagem inválida: use upload via painel admin para salvar no banco antes de gerar mockup. Recebido: ${src.substring(0, 60)}`,
+      );
+    };
 
-    /** Uploads do usuário ficam em uploads/ na raiz do cwd (ex: /uploads/arts/...) */
-    const toUploadPath = (p: string): string =>
-      path.join(process.cwd(), p.replace(/^\/+/, ''));
+    // ── Buffer da imagem base do produto (sempre do banco) ────────────────────
+    // baseImageData = data URI salvo pelo admin via upload
+    // Se não tiver, usa placeholder SVG gerado em memória (nunca lê disco)
+    const baseBuffer = product.baseImageData
+      ? await toBuffer(product.baseImageData)
+      : await this.getPlaceholderBuffer(product.name);
 
-    // ── Frente ──────────────────────────────────────────────────────────────
-    const baseImagePath = toProductPath(product.baseImageUrl);
-    if (!fs.existsSync(baseImagePath)) await this.ensurePlaceholder(baseImagePath, product.name);
-
-    let userImagePath: string | undefined;
-    if (hasFrontArt) {
-      userImagePath = toUploadPath(dto.imageUrl!);
-      if (!fs.existsSync(userImagePath)) throw new BadRequestException(`Imagem não encontrada: ${dto.imageUrl}`);
-    }
-
-    // Só gera mockup da frente se houver conteúdo nela
-    let frontMockupUrl: string | undefined;
+    // ── Frente ───────────────────────────────────────────────────────────────
+    let frontMockupBase64: string | undefined;
     if (hasFrontArt || hasFrontText) {
-      frontMockupUrl = await this.renderService.generateMockup({
-        baseImagePath,
-        userImagePath: userImagePath ?? baseImagePath,
-        area: { x: frontArea.x, y: frontArea.y, width: frontArea.width, height: frontArea.height },
-        transform: {
-          x: dto.transform?.x ?? 0,
-          y: dto.transform?.y ?? 0,
-          scale: dto.transform?.scale ?? 1,
-          rotation: dto.transform?.rotation ?? 0,
-        },
+      const userBuffer = hasFrontArt ? await toBuffer(dto.imageUrl!) : baseBuffer;
+      // artRect enviado pelo frontend já está em coordenadas 800×800
+      // Fallback: ocupa toda a área de mockup definida no produto
+      const rect = dto.artRect
+        ? { x: dto.artRect.x ?? frontArea.x, y: dto.artRect.y ?? frontArea.y, width: dto.artRect.width ?? frontArea.width, height: dto.artRect.height ?? frontArea.height }
+        : { x: frontArea.x, y: frontArea.y, width: frontArea.width, height: frontArea.height };
+      const rectRotation = dto.artRect?.rotation ?? 0;
+      frontMockupBase64 = await this.renderService.generateMockupFromBuffers({
+        baseBuffer,
+        userBuffer,
+        artRect: rect,
+        rotation: rectRotation,
         textLayers: dto.textLayers ?? [],
         skipUserImage: !hasFrontArt,
       });
     }
 
-    // ── Verso (opcional) ─────────────────────────────────────────────────────
-    let backMockupUrl: string | undefined;
+    // ── Verso ────────────────────────────────────────────────────────────────
+    let backMockupBase64: string | undefined;
+    const hasBackContent = hasBackArt || (dto.backTextLayers && dto.backTextLayers.length > 0);
+    if (hasBackContent && backArea) {
+      const backBaseBuffer = product.backImageData
+        ? await toBuffer(product.backImageData)
+        : baseBuffer;
 
-    const hasBackContent = dto.backImageUrl || (dto.backTextLayers && dto.backTextLayers.length > 0);
-    if (hasBackContent && backArea && (product.backImageUrl || product.baseImageUrl)) {
-      const backBaseImagePath = toProductPath((product.backImageUrl ?? product.baseImageUrl)!);
-      if (!fs.existsSync(backBaseImagePath)) await this.ensurePlaceholder(backBaseImagePath, `${product.name} costa`);
+      const backUserBuffer = hasBackArt ? await toBuffer(dto.backImageUrl!) : backBaseBuffer;
+      const backRect = dto.backArtRect
+        ? { x: dto.backArtRect.x ?? backArea.x, y: dto.backArtRect.y ?? backArea.y, width: dto.backArtRect.width ?? backArea.width, height: dto.backArtRect.height ?? backArea.height }
+        : { x: backArea.x, y: backArea.y, width: backArea.width, height: backArea.height };
+      const backRotation = dto.backArtRect?.rotation ?? 0;
 
-      let backUserImagePath: string | undefined;
-      if (dto.backImageUrl) {
-        backUserImagePath = toUploadPath(dto.backImageUrl);
-        if (!fs.existsSync(backUserImagePath)) backUserImagePath = undefined;
-      }
-
-      backMockupUrl = await this.renderService.generateMockup({
-        baseImagePath: backBaseImagePath,
-        userImagePath: backUserImagePath ?? baseImagePath, // fallback: usa frente se sem arte no verso
-        area: { x: backArea.x, y: backArea.y, width: backArea.width, height: backArea.height },
-        transform: dto.backTransform ?? dto.transform,
+      backMockupBase64 = await this.renderService.generateMockupFromBuffers({
+        baseBuffer: backBaseBuffer,
+        userBuffer: backUserBuffer,
+        artRect: backRect,
+        rotation: backRotation,
         textLayers: dto.backTextLayers ?? [],
-        // Se não há arte no verso, renderiza só o texto (sem arte)
-        skipUserImage: !backUserImagePath,
+        skipUserImage: !hasBackArt,
       });
     }
 
-    // Salva no banco — usa o primeiro mockup gerado como principal
-    const primaryUrl = frontMockupUrl ?? backMockupUrl!;
+    // ── Salva no banco ───────────────────────────────────────────────────────
     const mockup = await this.prisma.mockupGenerated.create({
       data: {
         productId: dto.productId,
         variantId: dto.variantId ?? null,
-        imageUrl: primaryUrl,
+        imageUrl: 'data:image/png;base64,...', // placeholder; dado real em imageData
+        imageData: frontMockupBase64 ?? null,
+        backImageData: backMockupBase64 ?? null,
       },
     });
 
     return {
       data: {
         id: mockup.id,
-        mockupUrl: frontMockupUrl ?? null,
-        backMockupUrl: backMockupUrl ?? null,
+        mockupUrl:     frontMockupBase64 ?? null,
+        backMockupUrl: backMockupBase64  ?? null,
         productId: dto.productId,
         createdAt: mockup.createdAt,
       },
@@ -146,11 +155,7 @@ export class MockupsService {
       where: { id },
       include: { product: true, variant: true },
     });
-
-    if (!mockup) {
-      throw new NotFoundException(`Mockup ${id} não encontrado`);
-    }
-
+    if (!mockup) throw new NotFoundException(`Mockup ${id} não encontrado`);
     return { data: mockup as MockupGenerated & { product: Product; variant: unknown }, message: 'Mockup encontrado', status: 200 };
   }
 
@@ -162,34 +167,16 @@ export class MockupsService {
     }) as Promise<(MockupGenerated & { product: Product; variant: unknown })[]>;
   }
 
-  /**
-   * Gera um placeholder PNG com formato do produto via SVG.
-   * Cada categoria tem um silhueta diferente.
-   */
-  private async ensurePlaceholder(filePath: string, productName: string): Promise<void> {
-    const dir = path.dirname(filePath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-
+  /** Gera placeholder em memória sem salvar em disco */
+  private async getPlaceholderBuffer(productName: string): Promise<Buffer> {
     const name = productName.toLowerCase();
     let svgContent: string;
-
-    if (name.includes('camis') || name.includes('shirt') || name.includes('blusa')) {
-      svgContent = this.svgCamiseta();
-    } else if (name.includes('caneca') || name.includes('mug')) {
-      svgContent = this.svgCaneca();
-    } else if (name.includes('bon') || name.includes('cap') || name.includes('chapeu')) {
-      svgContent = this.svgBone();
-    } else if (name.includes('chinelo') || name.includes('sandal')) {
-      svgContent = this.svgChinelo();
-    } else {
-      svgContent = this.svgGenerico(productName);
-    }
-
-    await sharp(Buffer.from(svgContent))
-      .png()
-      .toFile(filePath);
+    if (name.includes('camis') || name.includes('shirt') || name.includes('blusa')) svgContent = this.svgCamiseta();
+    else if (name.includes('caneca') || name.includes('mug')) svgContent = this.svgCaneca();
+    else if (name.includes('bon') || name.includes('cap') || name.includes('chapeu')) svgContent = this.svgBone();
+    else if (name.includes('chinelo') || name.includes('sandal')) svgContent = this.svgChinelo();
+    else svgContent = this.svgGenerico(productName);
+    return sharp(Buffer.from(svgContent)).png().toBuffer();
   }
 
   private svgCamiseta(): string {

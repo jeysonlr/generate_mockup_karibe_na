@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import toast from 'react-hot-toast';
 import { Upload, Wand2, Download, Share2, ArrowLeft, RotateCcw } from 'lucide-react';
-import { productsApi, uploadsApi, mockupsApi, type Product } from '@/services/api';
+import { productsApi, uploadsApi, mockupsApi, type Product, resolveProductImage } from '@/services/api';
 import { useEditorStore } from '@/store/editor.store';
 import { themeConfig } from '@/config/theme.config';
 import { TextPanel, type TextLayerLocal } from '@/components/editor/TextPanel';
@@ -241,16 +241,8 @@ export default function EditorPage() {
     resizing.current = { startMouseX: e.clientX, startMouseY: e.clientY, startW: current.art.width, startH: current.art.height };
   };
 
-  // Imagem do produto para o lado ativo
-  const productImageUrl = (() => {
-    if (activeSide === 'back' && product?.backImageUrl) {
-      return `${API_URL}${product.backImageUrl}`;
-    }
-    if (product?.baseImageUrl) {
-      return `${API_URL}${product.baseImageUrl}`;
-    }
-    return null;
-  })();
+  // Imagem do produto para o lado ativo (prioriza base64 do banco)
+  const productImageUrl = product ? resolveProductImage(product, activeSide) : null;
 
   // Gerar mockup (imagem OU texto em qualquer lado)
   const handleGenerate = async () => {
@@ -289,23 +281,28 @@ export default function EditorPage() {
 
       if (hasFrontArt && frontArea) {
         payload.imageUrl = sides.front.artServerUrl!;
-        payload.transform = {
-          x: Math.round(sides.front.art.x * TO_SERVER - (frontArea.x ?? 0)),
-          y: Math.round(sides.front.art.y * TO_SERVER - (frontArea.y ?? 0)),
-          scale: (sides.front.art.width * TO_SERVER) / (frontArea.width ?? 200),
+        // Envia posição e tamanho ABSOLUTOS convertidos para o espaço 800×800
+        payload.artRect = {
+          x:        Math.round(sides.front.art.x      * TO_SERVER),
+          y:        Math.round(sides.front.art.y      * TO_SERVER),
+          width:    Math.round(sides.front.art.width  * TO_SERVER),
+          height:   Math.round(sides.front.art.height * TO_SERVER),
           rotation: sides.front.art.rotation,
         };
       }
 
       // Verso
       if (backArea && (sides.back.artServerUrl || backTexts.length > 0)) {
-        if (sides.back.artServerUrl) payload.backImageUrl = sides.back.artServerUrl;
-        payload.backTransform = {
-          x: Math.round(sides.back.art.x * TO_SERVER - (backArea.x ?? 0)),
-          y: Math.round(sides.back.art.y * TO_SERVER - (backArea.y ?? 0)),
-          scale: (sides.back.art.width * TO_SERVER) / (backArea.width ?? 200),
-          rotation: sides.back.art.rotation,
-        };
+        if (sides.back.artServerUrl) {
+          payload.backImageUrl = sides.back.artServerUrl;
+          payload.backArtRect = {
+            x:        Math.round(sides.back.art.x      * TO_SERVER),
+            y:        Math.round(sides.back.art.y      * TO_SERVER),
+            width:    Math.round(sides.back.art.width  * TO_SERVER),
+            height:   Math.round(sides.back.art.height * TO_SERVER),
+            rotation: sides.back.art.rotation,
+          };
+        }
         if (backTexts.length > 0) payload.backTextLayers = backTexts;
       }
 
@@ -331,7 +328,8 @@ export default function EditorPage() {
   const handleDownload = () => {
     if (!generatedMockupUrl) return;
     const a = document.createElement('a');
-    a.href = `${API_URL}${generatedMockupUrl}`;
+    // mockupUrl já é data URI base64 — não precisa de prefixo de API
+    a.href = generatedMockupUrl.startsWith('data:') ? generatedMockupUrl : `${API_URL}${generatedMockupUrl}`;
     a.download = `mockup-${productId}-frente.png`;
     a.click();
   };
@@ -339,7 +337,7 @@ export default function EditorPage() {
   const handleDownloadBack = () => {
     if (!backMockupUrl) return;
     const a = document.createElement('a');
-    a.href = `${API_URL}${backMockupUrl}`;
+    a.href = backMockupUrl.startsWith('data:') ? backMockupUrl : `${API_URL}${backMockupUrl}`;
     a.download = `mockup-${productId}-costa.png`;
     a.click();
   };
@@ -348,10 +346,14 @@ export default function EditorPage() {
   const handleDownloadCombined = async () => {
     if (!generatedMockupUrl || !backMockupUrl) return;
 
+    const toSrc = (url: string) =>
+      url.startsWith('data:') ? url : `${API_URL}${url}`;
+
     const loadImg = (url: string): Promise<HTMLImageElement> =>
       new Promise((resolve, reject) => {
         const img = new window.Image();
-        img.crossOrigin = 'anonymous';
+        // crossOrigin só é necessário para URLs externas; data URI não precisa
+        if (!url.startsWith('data:')) img.crossOrigin = 'anonymous';
         img.onload = () => resolve(img);
         img.onerror = reject;
         img.src = url;
@@ -359,8 +361,8 @@ export default function EditorPage() {
 
     try {
       const [imgFront, imgBack] = await Promise.all([
-        loadImg(`${API_URL}${generatedMockupUrl}`),
-        loadImg(`${API_URL}${backMockupUrl}`),
+        loadImg(toSrc(generatedMockupUrl)),
+        loadImg(toSrc(backMockupUrl)),
       ]);
 
       const GAP = 20;
@@ -392,8 +394,8 @@ export default function EditorPage() {
 
   const handleWhatsApp = () => {
     if (!generatedMockupUrl) return;
-    const fullUrl = encodeURIComponent(`${API_URL}${generatedMockupUrl}`);
-    const msg = encodeURIComponent(`Olá! Segue meu mockup personalizado: ${decodeURIComponent(fullUrl)}`);
+    // data URI não pode ser enviado como link direto no WhatsApp — informa o usuário
+    const msg = encodeURIComponent(`Olá! Acabei de personalizar um produto: *${product?.name}*. Gostaria de mais informações!`);
     window.open(`https://wa.me/${themeConfig.whatsappNumber}?text=${msg}`, '_blank');
   };
 
@@ -735,7 +737,7 @@ export default function EditorPage() {
                   )}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`${API_URL}${generatedMockupUrl}`}
+                    src={generatedMockupUrl.startsWith('data:') ? generatedMockupUrl : `${API_URL}${generatedMockupUrl}`}
                     alt="Mockup frente"
                     className="rounded-xl shadow-lg mx-auto"
                     style={{ maxWidth: backMockupUrl ? 220 : 320, width: '100%' }}
@@ -746,7 +748,7 @@ export default function EditorPage() {
                     <p className="text-xs mb-2 font-medium" style={{ color: 'var(--muted)' }}>🔄 Costa</p>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={`${API_URL}${backMockupUrl}`}
+                      src={backMockupUrl.startsWith('data:') ? backMockupUrl : `${API_URL}${backMockupUrl}`}
                       alt="Mockup costa"
                       className="rounded-xl shadow-lg mx-auto"
                       style={{ maxWidth: 220, width: '100%' }}

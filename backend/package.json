@@ -8,6 +8,7 @@
     "start": "node dist/main",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
+    "normalize:images": "node_modules/.bin/ts-node --skip-project --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' prisma/normalize-images.ts",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",

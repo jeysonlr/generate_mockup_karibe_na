@@ -1,7 +1,7 @@
 # 📋 Project Status — Karibe N.A Mockup Generator
 
 > Documento mantido pelo **Agent 01 (Product Owner)** + **Agent 02 (Scrum Master)**
-> Última atualização: 2026-05-09 — Sprint 2 concluída
+> Última atualização: 2026-05-11 — Sprint 3 concluída
 
 ---
 
@@ -9,6 +9,55 @@
 
 Sistema que permite usuários escolherem um produto (camiseta, caneca, boné, chinelo etc.),
 enviarem uma arte, ajustarem no editor visual e gerarem um mockup final para download ou envio via WhatsApp.
+
+---
+
+## 📦 Sprint 3 — Admin & Catálogo Dinâmico ✅ CONCLUÍDA
+
+> **Agentes ativos:** Agent 01 (PO), Agent 02 (SM), Agent 03 (Architect), Agent 05 (Backend), Agent 06 (Frontend), Agent 07 (QA)
+> **Início:** 2026-05-11 | **Conclusão:** 2026-05-11
+
+### 🎯 Meta da Sprint
+Entregar painel admin protegido por JWT para gestão de produtos, e vitrine pública com seção de destaque para produtos personalizáveis.
+
+### ✅ Concluído
+
+#### Backend
+- [x] Model `AdminUser` no Prisma + migration
+- [x] Campos `price` e `isMockupEnabled` adicionados ao model `Product`
+- [x] `POST /auth/login` — autenticação com email/senha, retorna JWT
+- [x] `GET /auth/me` — retorna dados do admin autenticado
+- [x] `JwtStrategy` + `JwtAuthGuard`
+- [x] `AuthModule` registrado no `AppModule`
+- [x] `AdminProductsController` (CRUD completo protegido por JWT)
+- [x] `POST /admin/products/:id/image/:side` — upload de imagem frente/costa
+- [x] `AdminModule` registrado no `AppModule`
+- [x] Seed atualizado: admin padrão (`admin@karibena.com` / `admin123`) + `isMockupEnabled` nos produtos
+- [x] Migration aplicada no banco de produção (Render)
+- [x] Testes unitários: `AuthService` — 6 casos
+- [x] Testes unitários: `AdminProductsService` — 7 casos
+- [x] ADR-006 documentado — JWT com Passport.js
+- [x] ADR-007 documentado — campos `price` e `isMockupEnabled`
+- [x] ADR-008 documentado — vitrine pública `/produtos`
+
+#### Frontend
+- [x] Interceptor JWT no `api.ts` (token automático no header)
+- [x] Interface `Product` atualizada (`price`, `isMockupEnabled`)
+- [x] `authApi` e `adminProductsApi` adicionados ao `api.ts`
+- [x] `auth.store.ts` — `useAuth` com login, logout, init
+- [x] `AdminLayout.tsx` — sidebar com navegação e proteção de rotas
+- [x] `/admin/layout.tsx` — wrapper de rotas admin
+- [x] `/admin/login` — página de login com validação e feedback
+- [x] `/admin/dashboard` — lista de produtos com cards de resumo e tabela
+- [x] `ProductForm.tsx` — formulário reutilizável (criar/editar)
+- [x] `/admin/produtos/novo` — criar produto
+- [x] `/admin/produtos/[id]` — editar produto + upload de imagem + áreas
+- [x] Toggles: "Personalização com Mockup", "Frente e Costa", "Produto Ativo"
+- [x] `/produtos` — vitrine pública com seção de destaque personalizáveis
+- [x] Botão "Personalizar Agora" → editor (para produtos com mockup)
+- [x] Botão "Pedir pelo WhatsApp" → link direto (para produtos sem mockup)
+- [x] `/` (home) redireciona para `/produtos`
+- [x] Build de produção: ✅ sem erros
 
 ---
 
@@ -87,11 +136,13 @@ Entregar uma experiência de editor completa: o usuário consegue adicionar text
 
 ## 🔲 Backlog — Próximas Sprints
 
-### Sprint 3 — Admin & Catálogo Dinâmico (PRÓXIMA)
-- [ ] Painel admin simples (autenticação JWT)
-- [ ] CRUD de produtos pelo admin (sem precisar de dev)
-- [ ] Upload de imagem base do produto pelo admin
-- [ ] Configuração da área de personalização pelo admin
+### Sprint 3 — Admin & Catálogo Dinâmico ✅ CONCLUÍDA
+- [x] Painel admin simples (autenticação JWT)
+- [x] CRUD de produtos pelo admin (sem precisar de dev)
+- [x] Upload de imagem base do produto pelo admin
+- [x] Configuração da área de personalização pelo admin
+- [x] Vitrine pública `/produtos` com seção de destaque personalizáveis
+- [x] Botão WhatsApp para produtos não personalizáveis
 
 ### Sprint 4 — Qualidade & Observabilidade
 - [ ] CI/CD com GitHub Actions
@@ -157,9 +208,24 @@ Entregar uma experiência de editor completa: o usuário consegue adicionar text
 - **Alternativa descartada:** Canvas no servidor (pesado, complexo de configurar no Alpine)
 - **Impacto:** `render.service.ts` recebe campo `textLayers[]` opcional no DTO
 
----
+### ADR-006: Autenticação JWT com Passport.js
+- **Status:** Aceita
+- **Decisão:** `@nestjs/jwt` + `passport-jwt` para autenticação stateless
+- **Motivo:** Padrão NestJS, sem sessão no servidor, compatível com deploy no Render
+- **Estratégia:** Token no `localStorage` do frontend, header `Authorization: Bearer <token>`
 
-## 📊 Histórias de Usuário
+### ADR-007: Campos `price` e `isMockupEnabled` no model Product
+- **Status:** Aceita
+- **Decisão:** Adicionar `price Decimal?` e `isMockupEnabled Boolean @default(false)` ao model `Product`
+- **Motivo:** Controle granular por produto sem nova tabela. `hasSides` já existia.
+
+### ADR-008: Vitrine pública como rota `/produtos`
+- **Status:** Aceita
+- **Decisão:** Rota `/produtos` separada, home (`/`) redireciona para lá
+- **Motivo:** Separa responsabilidade: home = apresentação, `/produtos` = catálogo
+- **Regra:** `isMockupEnabled = true` sempre na seção "Personalize o Seu" (topo)
+
+---
 
 ### US-001 — Selecionar produto
 ```
